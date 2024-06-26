@@ -279,6 +279,30 @@ private:
                       std::atomic<bool>& terminate,
                       std::atomic<int>& disk_writer_done);
 
+  static void parse_custom_paths(const char* custom_paths,
+                          std::vector<std::string>& directories,
+                          std::vector<std::string>& p_aux_filenames,
+                          std::vector<std::vector<std::string>>& tree_c_filenames,
+                          std::vector<std::vector<std::string>>& tree_r_filenames,
+                          std::vector<std::string>& sealed_filenames);
+
+  static void generate_default_paths(const char* output_dir,
+                              const std::string& pc2_replica_output_dir,
+                              std::vector<std::string>& directories,
+                              std::vector<std::string>& p_aux_filenames,
+                              std::vector<std::vector<std::string>>& tree_c_filenames,
+                              std::vector<std::vector<std::string>>& tree_r_filenames,
+                              std::vector<std::string>& sealed_filenames);
+
+  static void add_paths_for_sector(const char* output_dir,
+                            size_t sector,
+                            const std::string& pc2_replica_output_dir,
+                            std::vector<std::string>& directories,
+                            std::vector<std::string>& p_aux_filenames,
+                            std::vector<std::vector<std::string>>& tree_c_filenames,
+                            std::vector<std::vector<std::string>>& tree_r_filenames,
+                            std::vector<std::string>& sealed_filenames);
+
 public:
   pc2_t(topology_t& _topology,
         bool _tree_r_only, streaming_node_reader_t<C>& _reader,

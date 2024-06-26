@@ -159,6 +159,7 @@ pc2_t<C>::~pc2_t() {
   }
   cudaHostUnregister(page_buffer);
 }
+/*
 template<class C>
 void pc2_t<C>::get_filenames(const char* output_dir,
                                 std::vector<std::string>& directories,
@@ -279,6 +280,154 @@ void pc2_t<C>::get_filenames(const char* output_dir,
     }
     sealed_filenames.push_back(fname);
   }
+}
+ */
+
+template<class C>
+void pc2_t<C>::get_filenames(const char* output_dir,
+                             std::vector<std::string>& directories,
+                             std::vector<std::string>& p_aux_filenames,
+                             std::vector<std::vector<std::string>>& tree_c_filenames,
+                             std::vector<std::vector<std::string>>& tree_r_filenames,
+                             std::vector<std::string>& sealed_filenames) {
+    std::string pc2_replica_output_dir = output_dir;
+    pc2_replica_output_dir += "/replicas";
+    if (!std::filesystem::exists(pc2_replica_output_dir.c_str())) {
+        pc2_replica_output_dir = output_dir;
+    }
+
+    if (strncmp(output_dir, "//multi//", 8) == 0) {
+        const char* custom_paths = output_dir + 8;
+        parse_custom_paths(custom_paths, directories, p_aux_filenames, tree_c_filenames, tree_r_filenames, sealed_filenames);
+    } else {
+        generate_default_paths(output_dir, pc2_replica_output_dir, directories, p_aux_filenames, tree_c_filenames, tree_r_filenames, sealed_filenames);
+    }
+}
+
+template<class C>
+void pc2_t<C>::parse_custom_paths(const char* custom_paths,
+                                  std::vector<std::string>& directories,
+                                  std::vector<std::string>& p_aux_filenames,
+                                  std::vector<std::vector<std::string>>& tree_c_filenames,
+                                  std::vector<std::vector<std::string>>& tree_r_filenames,
+                                  std::vector<std::string>& sealed_filenames) {
+    const size_t MAX = 256;
+    char fname[MAX];
+
+    for (size_t i = 0; i < C::PARALLEL_SECTORS; i++) {
+        uint32_t len;
+        memcpy(&len, custom_paths, sizeof(len));
+        custom_paths += sizeof(len);
+        std::string replicaPath(custom_paths, len);
+        custom_paths += len;
+
+        memcpy(&len, custom_paths, sizeof(len));
+        custom_paths += sizeof(len);
+        std::string treeDir(custom_paths, len);
+        custom_paths += len;
+
+        directories.push_back(replicaPath);
+
+        snprintf(fname, MAX, "%s/p_aux", replicaPath.c_str());
+        p_aux_filenames.push_back(fname);
+
+        directories.push_back(replicaPath);
+
+        for (size_t j = 0; j < C::GetNumTreeRCFiles(); j++) {
+            snprintf(fname, MAX, "%s/sc-02-data-tree-c-%ld.dat", treeDir.c_str(), j);
+            tree_c_filenames[i].push_back(fname);
+
+            snprintf(fname, MAX, "%s/sc-02-data-tree-r-last-%ld.dat", treeDir.c_str(), j);
+            tree_r_filenames[i].push_back(fname);
+        }
+
+        snprintf(fname, MAX, "%s/sealed-file", replicaPath.c_str());
+        sealed_filenames.push_back(fname);
+    }
+}
+
+template<class C>
+void pc2_t<C>::generate_default_paths(const char* output_dir,
+                                      const std::string& pc2_replica_output_dir,
+                                      std::vector<std::string>& directories,
+                                      std::vector<std::string>& p_aux_filenames,
+                                      std::vector<std::vector<std::string>>& tree_c_filenames,
+                                      std::vector<std::vector<std::string>>& tree_r_filenames,
+                                      std::vector<std::string>& sealed_filenames) {
+    directories.push_back(output_dir);
+
+    tree_c_filenames.resize(C::PARALLEL_SECTORS);
+    tree_r_filenames.resize(C::PARALLEL_SECTORS);
+
+    for (size_t i = 0; i < C::PARALLEL_SECTORS; i++) {
+        add_paths_for_sector(output_dir, i, pc2_replica_output_dir, directories, p_aux_filenames, tree_c_filenames, tree_r_filenames, sealed_filenames);
+    }
+}
+
+template<class C>
+void pc2_t<C>::add_paths_for_sector(const char* output_dir,
+                                    size_t sector,
+                                    const std::string& pc2_replica_output_dir,
+                                    std::vector<std::string>& directories,
+                                    std::vector<std::string>& p_aux_filenames,
+                                    std::vector<std::vector<std::string>>& tree_c_filenames,
+                                    std::vector<std::vector<std::string>>& tree_r_filenames,
+                                    std::vector<std::string>& sealed_filenames) {
+    const size_t MAX = 256;
+    char fname[MAX];
+
+    const char* p_aux_template = (C::PARALLEL_SECTORS == 1) ? "%s/p_aux" : "%s/%03ld/p_aux";
+    const char* tree_c_filename_template = (C::PARALLEL_SECTORS == 1) ?
+                                            (C::GetNumTreeRCFiles() > 1 ? "%s/sc-02-data-tree-c-%ld.dat" : "%s/sc-02-data-tree-c.dat") :
+                                            (C::GetNumTreeRCFiles() > 1 ? "%s/%03ld/sc-02-data-tree-c-%ld.dat" : "%s/%03ld/sc-02-data-tree-c.dat");
+    const char* tree_r_filename_template = (C::PARALLEL_SECTORS == 1) ?
+                                            (C::GetNumTreeRCFiles() > 1 ? "%s/sc-02-data-tree-r-last-%ld.dat" : "%s/sc-02-data-tree-r-last.dat") :
+                                            (C::GetNumTreeRCFiles() > 1 ? "%s/%03ld/sc-02-data-tree-r-last-%ld.dat" : "%s/%03ld/sc-02-data-tree-r-last.dat");
+    const char* sealed_filename_template = (C::PARALLEL_SECTORS == 1) ? "%s/sealed-file" : "%s/%03ld/sealed-file";
+
+    if (C::PARALLEL_SECTORS == 1) {
+        snprintf(fname, MAX, "%s", output_dir);
+    } else {
+        snprintf(fname, MAX, "%s/%03ld", output_dir, sector);
+    }
+    directories.push_back(fname);
+
+    if (C::PARALLEL_SECTORS == 1) {
+        snprintf(fname, MAX, p_aux_template, output_dir);
+    } else {
+        snprintf(fname, MAX, p_aux_template, output_dir, sector);
+    }
+    p_aux_filenames.push_back(fname);
+
+    if (C::PARALLEL_SECTORS == 1) {
+        snprintf(fname, MAX, "%s", pc2_replica_output_dir.c_str());
+    } else {
+        snprintf(fname, MAX, "%s/%03ld", pc2_replica_output_dir.c_str(), sector);
+    }
+    directories.push_back(fname);
+
+    for (size_t j = 0; j < C::GetNumTreeRCFiles(); j++) {
+        if (C::PARALLEL_SECTORS == 1) {
+            snprintf(fname, MAX, tree_c_filename_template, output_dir, j);
+        } else {
+            snprintf(fname, MAX, tree_c_filename_template, output_dir, sector, j);
+        }
+        tree_c_filenames[sector].push_back(fname);
+
+        if (C::PARALLEL_SECTORS == 1) {
+            snprintf(fname, MAX, tree_r_filename_template, output_dir, j);
+        } else {
+            snprintf(fname, MAX, tree_r_filename_template, output_dir, sector, j);
+        }
+        tree_r_filenames[sector].push_back(fname);
+    }
+
+    if (C::PARALLEL_SECTORS == 1) {
+        snprintf(fname, MAX, sealed_filename_template, pc2_replica_output_dir.c_str());
+    } else {
+        snprintf(fname, MAX, sealed_filename_template, pc2_replica_output_dir.c_str(), sector);
+    }
+    sealed_filenames.push_back(fname);
 }
 
 template<class C>
