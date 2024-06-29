@@ -178,6 +178,9 @@ fn create_replica_id(
         _ => [99u8; 32], // use an arbitrary porep_id for other sizes
     };
 
+    // Print porep_id
+    println!("PoRep ID for sector size {}: {:?}", sector_size_string, porep_id);
+
     let hash = Sha256::new()
         .chain_update(&prover_id)
         .chain_update(sector_id.to_be_bytes())
@@ -189,6 +192,10 @@ fn create_replica_id(
     let mut id = [0u8; 32];
     id.copy_from_slice(&hash);
     id[31] &= 0b0011_1111;
+
+    // Print id as hex
+    println!("Replica ID (hex): {:x?}", id);
+
     id.to_vec()
 }
 
