@@ -329,16 +329,13 @@ void pc2_t<C>::parse_custom_paths(const char* custom_paths,
 
         memcpy(&len, custom_paths, sizeof(len));
         custom_paths += sizeof(len);
-
         std::string cacheDir(custom_paths, len);
         custom_paths += len;
 
-        directories.push_back(replicaPath);
+        directories.push_back(cacheDir);
 
         snprintf(fname, MAX, "%s/p_aux", cacheDir.c_str());
         p_aux_filenames.push_back(fname);
-
-        directories.push_back(cacheDir);
 
         for (size_t j = 0; j < C::GetNumTreeRCFiles(); j++) {
             snprintf(fname, MAX, "%s/sc-02-data-tree-c-%ld.dat", cacheDir.c_str(), j);
