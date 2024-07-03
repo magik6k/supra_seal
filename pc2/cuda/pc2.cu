@@ -296,8 +296,8 @@ void pc2_t<C>::get_filenames(const char* output_dir,
         pc2_replica_output_dir = output_dir;
     }
 
-    if (strncmp(output_dir, "//multi//", 8) == 0) {
-        const char* custom_paths = output_dir + 8;
+    if (strncmp(output_dir, "//multi//", 9) == 0) {
+        const char* custom_paths = output_dir + 9;
         parse_custom_paths(custom_paths, directories, p_aux_filenames, tree_c_filenames, tree_r_filenames, sealed_filenames);
     } else {
         generate_default_paths(output_dir, pc2_replica_output_dir, directories, p_aux_filenames, tree_c_filenames, tree_r_filenames, sealed_filenames);
