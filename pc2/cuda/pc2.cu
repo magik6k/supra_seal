@@ -314,35 +314,39 @@ void pc2_t<C>::parse_custom_paths(const char* custom_paths,
     const size_t MAX = 256;
     char fname[MAX];
 
+    tree_c_filenames.resize(C::PARALLEL_SECTORS);
+    tree_r_filenames.resize(C::PARALLEL_SECTORS);
+
     for (size_t i = 0; i < C::PARALLEL_SECTORS; i++) {
         uint32_t len;
         memcpy(&len, custom_paths, sizeof(len));
         custom_paths += sizeof(len);
+
         std::string replicaPath(custom_paths, len);
         custom_paths += len;
+        snprintf(fname, MAX, "%s", replicaPath.c_str());
+        sealed_filenames.push_back(fname);
 
         memcpy(&len, custom_paths, sizeof(len));
         custom_paths += sizeof(len);
-        std::string treeDir(custom_paths, len);
+
+        std::string cacheDir(custom_paths, len);
         custom_paths += len;
 
         directories.push_back(replicaPath);
 
-        snprintf(fname, MAX, "%s/p_aux", replicaPath.c_str());
+        snprintf(fname, MAX, "%s/p_aux", cacheDir.c_str());
         p_aux_filenames.push_back(fname);
 
-        directories.push_back(replicaPath);
+        directories.push_back(cacheDir);
 
         for (size_t j = 0; j < C::GetNumTreeRCFiles(); j++) {
-            snprintf(fname, MAX, "%s/sc-02-data-tree-c-%ld.dat", treeDir.c_str(), j);
-            tree_c_filenames[i].push_back(fname);
+            snprintf(fname, MAX, "%s/sc-02-data-tree-c-%ld.dat", cacheDir.c_str(), j);
+            tree_c_filenames[i].push_back(fname); ////
 
-            snprintf(fname, MAX, "%s/sc-02-data-tree-r-last-%ld.dat", treeDir.c_str(), j);
+            snprintf(fname, MAX, "%s/sc-02-data-tree-r-last-%ld.dat", cacheDir.c_str(), j);
             tree_r_filenames[i].push_back(fname);
         }
-
-        snprintf(fname, MAX, "%s/sealed-file", replicaPath.c_str());
-        sealed_filenames.push_back(fname);
     }
 }
 
