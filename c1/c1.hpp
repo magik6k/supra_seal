@@ -169,7 +169,7 @@ void C1<C>::SetParentsBuf(const char* filename) {
 
 template<class C>
 void C1<C>::SetReplicaBuf(const char* cache) {
-  const char* rep_template = "%s/sealed-file";;
+  const char* rep_template = "%s";;
   const size_t MAX = 256;
   char fname[MAX];
   snprintf(fname, MAX, rep_template, cache);
