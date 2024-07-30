@@ -162,6 +162,15 @@ $CXX $CXXFLAGS $INCLUDE -Iposeidon -Ideps/sppark -Ideps/sppark/util -Ideps/blst/
 
 wait
 
+# Sppark object dedupe
+nm obj/pc2.o | grep -E 'select_gpu|all_gpus|cuda_available|gpu_props|ngpus' | awk '{print $3 " supra_" $3}' > symbol_rename.txt
+
+for obj in obj/pc1.o obj/pc2.o obj/ring_t.o obj/streaming_node_reader_nvme.o obj/supra_seal.o obj/sha_ext_mbx2.o; do
+  objcopy --redefine-syms=symbol_rename.txt $obj
+done
+
+rm symbol_rename.txt
+
 ar rvs obj/libsupraseal.a \
    obj/pc1.o \
    obj/pc2.o \
