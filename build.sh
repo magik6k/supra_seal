@@ -13,6 +13,40 @@ do
     esac
 done
 
+# Function to check GCC version
+check_gcc_version() {
+    local gcc_version=$(gcc -dumpversion | cut -d. -f1)
+    if [ "$gcc_version" != "11" ]; then
+        if command -v gcc-11 &> /dev/null && command -v g++-11 &> /dev/null; then
+            echo "GCC version is not 11. Setting CC, CXX, and NVCC_PREPEND_FLAGS to use GCC 11."
+            export CC=gcc-11
+            export CXX=g++-11
+            export NVCC_PREPEND_FLAGS='-ccbin /usr/bin/g++-11'
+        else
+            echo "Error: GCC 11 is required but not found. Please install GCC 11 and try again."
+            echo "You can typically install it using your package manager. For example:"
+            echo "  On Ubuntu: sudo apt-get install gcc-11 g++-11"
+            echo "  On Fedora: sudo dnf install gcc-11 gcc-c++-11"
+            echo "  On Arch: Install gcc11 from AUR"
+            exit 1
+        fi
+    fi
+}
+
+# Call the function to check GCC version
+check_gcc_version
+
+set -x
+
+# Rest of your script remains unchanged
+SECTOR_SIZE="" # Compile for all sector sizes
+while getopts r flag
+do
+    case "${flag}" in
+        r) SECTOR_SIZE="-DRUNTIME_SECTOR_SIZE";;
+    esac
+done
+
 CC=${CC:-cc}
 CXX=${CXX:-c++}
 NVCC=${NVCC:-nvcc}
@@ -109,9 +143,9 @@ LDFLAGS="-fno-omit-frame-pointer -Wl,-z,relro,-z,now -Wl,-z,noexecstack -fuse-ld
          -pthread -lrt -luuid -lssl -lcrypto -lm -laio"
 
 # Check for the default result directory
-if [ ! -d "/var/tmp/supra_seal" ]; then
-    mkdir -p /var/tmp/supra_seal
-fi
+# if [ ! -d "/var/tmp/supra_seal" ]; then
+#    mkdir -p /var/tmp/supra_seal
+# fi
 
 rm -fr obj
 mkdir -p obj
