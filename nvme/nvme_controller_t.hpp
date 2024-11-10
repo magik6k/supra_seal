@@ -107,54 +107,6 @@ public:
     }
     return health_page;
   }
-
-  std::vector<spdk_nvme_health_information_page> get_health_pages() {
-    std::vector<spdk_nvme_health_information_page> health_pages;
-    for (auto it: controllers) {
-        health_pages.push_back(it->get_health_page());
-    }
-    return health_pages;
-  }
-
-  std::vector<nvme_health_info> get_health_info() {
-    std::vector<nvme_health_info> health_infos;
-    auto health_pages = get_health_pages();
-    
-    for (const auto& page : health_pages) {
-        nvme_health_info info = {};
-        
-        // Convert the health page to our simplified format
-        info.critical_warning = page.critical_warning.raw;
-        info.temperature = page.temperature - 273;  // Convert Kelvin to Celsius
-        info.available_spare = page.available_spare;
-        info.available_spare_threshold = page.available_spare_threshold;
-        info.percentage_used = page.percentage_used;
-        
-        // Take first value from pairs for simplified interface
-        info.data_units_read = page.data_units_read[0];
-        info.data_units_written = page.data_units_written[0];
-        info.host_read_commands = page.host_read_commands[0];
-        info.host_write_commands = page.host_write_commands[0];
-        info.controller_busy_time = page.controller_busy_time[0];
-        info.power_cycles = page.power_cycles[0];
-        info.power_on_hours = page.power_on_hours[0];
-        info.unsafe_shutdowns = page.unsafe_shutdowns[0];
-        info.media_errors = page.media_errors[0];
-        info.num_error_info_log_entries = page.num_error_info_log_entries[0];
-        
-        info.warning_temp_time = page.warning_temp_time;
-        info.critical_temp_time = page.critical_temp_time;
-        
-        // Convert temperature sensors from Kelvin to Celsius
-        for (int i = 0; i < 8; i++) {
-            info.temp_sensors[i] = page.temp_sensor[i] - 273;
-        }
-        
-        health_infos.push_back(info);
-    }
-    
-    return health_infos;
-  }
   
   void cleanup() {
     for (auto it: qpairs) {
@@ -358,6 +310,54 @@ public:
 
   size_t size() {
     return controllers.size();
+  }
+
+  std::vector<spdk_nvme_health_information_page> get_health_pages() {
+    std::vector<spdk_nvme_health_information_page> health_pages;
+    for (auto it: controllers) {
+        health_pages.push_back(it->get_health_page());
+    }
+    return health_pages;
+  }
+
+  std::vector<nvme_health_info> get_health_info() {
+    std::vector<nvme_health_info> health_infos;
+    auto health_pages = get_health_pages();
+    
+    for (const auto& page : health_pages) {
+        nvme_health_info info = {};
+        
+        // Convert the health page to our simplified format
+        info.critical_warning = page.critical_warning.raw;
+        info.temperature = page.temperature - 273;  // Convert Kelvin to Celsius
+        info.available_spare = page.available_spare;
+        info.available_spare_threshold = page.available_spare_threshold;
+        info.percentage_used = page.percentage_used;
+        
+        // Take first value from pairs for simplified interface
+        info.data_units_read = page.data_units_read[0];
+        info.data_units_written = page.data_units_written[0];
+        info.host_read_commands = page.host_read_commands[0];
+        info.host_write_commands = page.host_write_commands[0];
+        info.controller_busy_time = page.controller_busy_time[0];
+        info.power_cycles = page.power_cycles[0];
+        info.power_on_hours = page.power_on_hours[0];
+        info.unsafe_shutdowns = page.unsafe_shutdowns[0];
+        info.media_errors = page.media_errors[0];
+        info.num_error_info_log_entries = page.num_error_info_log_entries[0];
+        
+        info.warning_temp_time = page.warning_temp_time;
+        info.critical_temp_time = page.critical_temp_time;
+        
+        // Convert temperature sensors from Kelvin to Celsius
+        for (int i = 0; i < 8; i++) {
+            info.temp_sensors[i] = page.temp_sensor[i] - 273;
+        }
+        
+        health_infos.push_back(info);
+    }
+    
+    return health_infos;
   }
 
   void print_temperatures() {

@@ -7,6 +7,7 @@
 extern "C" {
 #endif
 
+
 // Optional init function.
 // config_file - topology config file. Defaults to supra_config.cfg
 void supra_seal_init(size_t sector_size, const char* config_file);
