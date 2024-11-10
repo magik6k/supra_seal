@@ -353,7 +353,7 @@ void C1<C>::CombineProofs(const char* filename,
 
   mmap_t<uint8_t> tree_ptr;
   size_t exp_tree_buf_size = ProofSize(true, false);
-  tree_ptr.mmap_write(tree_filename, exp_tree_buf_size);
+  tree_ptr.mmap_read(tree_filename);
 
   mmap_t<uint8_t> node_ptr;
   node_ptr.mmap_read(node_filename);
