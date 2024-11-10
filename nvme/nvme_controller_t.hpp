@@ -5,6 +5,27 @@
 #ifndef __NVME_CONTROLLER_T_HPP__
 #define __NVME_CONTROLLER_T_HPP__
 
+struct nvme_health_info {
+    uint8_t  critical_warning;
+    int16_t  temperature;  // Converting to Celsius in the conversion function
+    uint8_t  available_spare;
+    uint8_t  available_spare_threshold;
+    uint8_t  percentage_used;
+    uint64_t data_units_read;
+    uint64_t data_units_written;
+    uint64_t host_read_commands;
+    uint64_t host_write_commands;
+    uint64_t controller_busy_time;
+    uint64_t power_cycles;
+    uint64_t power_on_hours;
+    uint64_t unsafe_shutdowns;
+    uint64_t media_errors;
+    uint64_t num_error_info_log_entries;
+    uint32_t warning_temp_time;
+    uint32_t critical_temp_time;
+    int16_t  temp_sensors[8];  // Converting to Celsius in the conversion function
+};
+
 class nvme_controller_t {
   friend nvme_controllers_t;
   friend nvme_namespace_t;
@@ -65,6 +86,74 @@ public:
       usleep(100);
     }
     return (int)health_page.temperature - 273;
+  }
+
+  // Get controller health information page
+  struct spdk_nvme_health_information_page get_health_page() {
+    std::mutex mtx;
+    mtx.lock();
+    static struct spdk_nvme_health_information_page health_page;
+    int rc = spdk_nvme_ctrlr_cmd_get_log_page(ctrlr, SPDK_NVME_LOG_HEALTH_INFORMATION,
+                                              SPDK_NVME_GLOBAL_NS_TAG, &health_page,
+                                              sizeof(health_page), 0,
+                                              get_log_page_completion, &mtx);
+    if (rc != 0) {
+      printf("WARNING: could not read controller health page\n");
+      return health_page;
+    }
+    while (!mtx.try_lock()) {
+      spdk_nvme_ctrlr_process_admin_completions(ctrlr);
+      usleep(100);
+    }
+    return health_page;
+  }
+
+  std::vector<spdk_nvme_health_information_page> get_health_pages() {
+    std::vector<spdk_nvme_health_information_page> health_pages;
+    for (auto it: controllers) {
+        health_pages.push_back(it->get_health_page());
+    }
+    return health_pages;
+  }
+
+  std::vector<nvme_health_info> get_health_info() {
+    std::vector<nvme_health_info> health_infos;
+    auto health_pages = get_health_pages();
+    
+    for (const auto& page : health_pages) {
+        nvme_health_info info = {};
+        
+        // Convert the health page to our simplified format
+        info.critical_warning = page.critical_warning.raw;
+        info.temperature = page.temperature - 273;  // Convert Kelvin to Celsius
+        info.available_spare = page.available_spare;
+        info.available_spare_threshold = page.available_spare_threshold;
+        info.percentage_used = page.percentage_used;
+        
+        // Take first value from pairs for simplified interface
+        info.data_units_read = page.data_units_read[0];
+        info.data_units_written = page.data_units_written[0];
+        info.host_read_commands = page.host_read_commands[0];
+        info.host_write_commands = page.host_write_commands[0];
+        info.controller_busy_time = page.controller_busy_time[0];
+        info.power_cycles = page.power_cycles[0];
+        info.power_on_hours = page.power_on_hours[0];
+        info.unsafe_shutdowns = page.unsafe_shutdowns[0];
+        info.media_errors = page.media_errors[0];
+        info.num_error_info_log_entries = page.num_error_info_log_entries[0];
+        
+        info.warning_temp_time = page.warning_temp_time;
+        info.critical_temp_time = page.critical_temp_time;
+        
+        // Convert temperature sensors from Kelvin to Celsius
+        for (int i = 0; i < 8; i++) {
+            info.temp_sensors[i] = page.temp_sensor[i] - 273;
+        }
+        
+        health_infos.push_back(info);
+    }
+    
+    return health_infos;
   }
   
   void cleanup() {

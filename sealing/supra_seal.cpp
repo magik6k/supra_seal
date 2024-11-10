@@ -139,6 +139,25 @@ void supra_seal_init(size_t sector_size, const char* config_file) {
 }
 
 extern "C"
+size_t get_nvme_health_info(nvme_health_info* health_infos, size_t max_controllers, size_t sector_size) {
+    init_ctx(sector_size);
+    
+    if (!sealing_ctx || !sealing_ctx->controllers) {
+        return 0;
+    }
+
+    auto health_data = (*sealing_ctx->controllers).get_health_info();
+    size_t count = std::min(health_data.size(), max_controllers);
+    
+    // Copy the health info into the provided array
+    for (size_t i = 0; i < count; i++) {
+        health_infos[i] = health_data[i];
+    }
+    
+    return count;
+}
+
+extern "C"
 int pc1(uint64_t block_offset, size_t num_sectors,
         const uint8_t* replica_ids, const char* parents_filename,
         size_t sector_size) {
