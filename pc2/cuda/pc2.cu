@@ -475,21 +475,25 @@ void pc2_t<C>::open_files() {
       tree_r_files[i][j]->advise_random();
     }
 
-    // Data files for encoding
-    if (data_filenames != nullptr && data_filenames[i] != nullptr) {
-      data_files[i].mmap_read(data_filenames[i], C::GetSectorSize());
-      // If there is a data file present we will encode layer 11 and write the
-      // sealed data
-      assert(sealed_files[i].open(sealed_filenames[i], C::GetSectorSize(), true, false) == 0);
-      has_non_cc_sectors = true;
-    } else {
-      // Write the raw layer 11 data
-      // It would be nice to write different files for encoded vs not encoded data but in
-      // reality we can't differentiate between CC and sectors that will use remote data.
-      // So we write them all to 'sealed_data' here.
-      assert(sealed_files[i].open(sealed_filenames[i], C::GetSectorSize(), true, false) == 0);
-      has_cc_sectors = true;
+    if(!tree_r_only) {
+      // Data files for encoding
+      if (data_filenames != nullptr && data_filenames[i] != nullptr) {
+        data_files[i].mmap_read(data_filenames[i], C::GetSectorSize());
+        // If there is a data file present we will encode layer 11 and write the
+        // sealed data
+        assert(sealed_files[i].open(sealed_filenames[i], C::GetSectorSize(), true, false) == 0);
+        has_non_cc_sectors = true;
+      } else {
+        // Write the raw layer 11 data
+        // It would be nice to write different files for encoded vs not encoded data but in
+        // reality we can't differentiate between CC and sectors that will use remote data.
+        // So we write them all to 'sealed_data' here.
+        assert(sealed_files[i].open(sealed_filenames[i], C::GetSectorSize(), true, false) == 0);
+        has_cc_sectors = true;
+      }
+
     }
+
   }
 }
 
@@ -837,6 +841,17 @@ void pc2_t<C>::hash_gpu(size_t partition) {
         break;
 
       case ResourceState::DATA_WAIT:
+       if (tree_r_only) {
+          resource.state = ResourceState::HASH_COLUMN_LEAVES;
+          fr_t* encode_buf = &resource.replica_data[0];
+          fr_t* layer11;
+          layer11 = &resource.column_data[0];
+          memcpy(encode_buf, layer11,
+                           C::PARALLEL_SECTORS * batch_size * sizeof(fr_t));
+
+          break;
+        }
+
         if (resource.valid.load() == resource.valid_count) {
           if (disk_batcher.size() < 1) {
             break;
